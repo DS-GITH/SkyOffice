@@ -1,16 +1,9 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
-import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
-import Avatar from '@mui/material/Avatar'
-import Alert from '@mui/material/Alert'
-import AlertTitle from '@mui/material/AlertTitle'
-import ArrowRightIcon from '@mui/icons-material/ArrowRight'
-
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation } from 'swiper'
-import 'swiper/css'
-import 'swiper/css/navigation'
+import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
+import MicNoneOutlinedIcon from '@mui/icons-material/MicNoneOutlined'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
 import Adam from '../images/login/Adam_login.png'
 import Ash from '../images/login/Ash_login.png'
@@ -18,227 +11,260 @@ import Lucy from '../images/login/Lucy_login.png'
 import Nancy from '../images/login/Nancy_login.png'
 import { useAppSelector, useAppDispatch } from '../hooks'
 import { setLoggedIn } from '../stores/UserStore'
-import { getAvatarString, getColorByString } from '../util'
+import { GlassPanel, Muted, StatusPill } from './ui/Glass'
 
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
 
-const Wrapper = styled.form`
+const AVATAR_KEY = 'xpert-office-avatar'
+
+const Overlay = styled.div`
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #222639;
-  border-radius: 16px;
-  padding: 36px 60px;
-  box-shadow: 0px 0px 5px #0000006f;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(3 4 7 / 0.55);
+  backdrop-filter: blur(6px);
 `
 
-const Title = styled.p`
-  margin: 5px;
-  font-size: 20px;
-  color: #c2c2c2;
-  text-align: center;
-`
+const Card = styled(GlassPanel)`
+  width: 100%;
+  max-width: 560px;
+  padding: 32px;
 
-const RoomName = styled.div`
-  max-width: 500px;
-  max-height: 120px;
-  overflow-wrap: anywhere;
-  overflow-y: auto;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  align-items: center;
-
-  h3 {
-    font-size: 24px;
-    color: #eee;
-  }
-`
-
-const RoomDescription = styled.div`
-  max-width: 500px;
-  max-height: 150px;
-  overflow-wrap: anywhere;
-  overflow-y: auto;
-  font-size: 16px;
-  color: #c2c2c2;
-  display: flex;
-  justify-content: center;
-`
-
-const SubTitle = styled.h3`
-  width: 160px;
-  font-size: 16px;
-  color: #eee;
-  text-align: center;
-`
-
-const Content = styled.div`
-  display: flex;
-  margin: 36px 0;
-`
-
-const Left = styled.div`
-  margin-right: 48px;
-
-  --swiper-navigation-size: 24px;
-
-  .swiper {
-    width: 160px;
-    height: 220px;
-    border-radius: 8px;
-    overflow: hidden;
+  .eyebrow {
+    font-size: 13px;
+    color: var(--text-faint);
+    margin-bottom: 6px;
   }
 
-  .swiper-slide {
-    width: 160px;
-    height: 220px;
-    background: #dbdbe0;
+  h2 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .label {
+    margin: 28px 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  .devices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+
+    @media (max-width: 520px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .device {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--radius-card);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-size: 14px;
+
+    &.ready {
+      border-color: rgb(85 205 10 / 0.35);
+    }
+
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
   }
 
-  .swiper-slide img {
-    display: block;
-    width: 95px;
-    height: 136px;
-    object-fit: contain;
+  .hint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  .actions {
+    margin-top: 28px;
+    display: flex;
+    justify-content: flex-end;
   }
 `
 
-const Right = styled.div`
-  width: 300px;
-`
+const AvatarGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 
-const Bottom = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
+  button {
+    all: unset;
+    cursor: pointer;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--radius-card);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: grid;
+    place-items: center;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
 
-const Warning = styled.div`
-  margin-top: 30px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+    img {
+      width: 60%;
+      image-rendering: pixelated;
+    }
+
+    &:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-2px);
+    }
+
+    &.selected {
+      background: var(--brand-soft);
+      border-color: var(--brand);
+      box-shadow: 0 0 0 4px rgb(43 127 255 / 0.2);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--brand);
+    }
+  }
 `
 
 const avatars = [
-  { name: 'adam', img: Adam },
-  { name: 'ash', img: Ash },
-  { name: 'lucy', img: Lucy },
-  { name: 'nancy', img: Nancy },
+  { name: 'adam', label: 'Adam', img: Adam },
+  { name: 'ash', label: 'Ash', img: Ash },
+  { name: 'lucy', label: 'Lucy', img: Lucy },
+  { name: 'nancy', label: 'Nancy', img: Nancy },
 ]
 
-// shuffle the avatars array
-for (let i = avatars.length - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1))
-  ;[avatars[i], avatars[j]] = [avatars[j], avatars[i]]
+function DeviceCard({
+  icon,
+  name,
+  ready,
+  readyLabel,
+  allowLabel,
+  onAllow,
+}: {
+  icon: React.ReactNode
+  name: string
+  ready: boolean
+  readyLabel: string
+  allowLabel: string
+  onAllow: () => void
+}) {
+  return (
+    <div className={`device ${ready ? 'ready' : ''}`}>
+      <div className="head">
+        <div className="name">
+          {icon}
+          {name}
+        </div>
+        <StatusPill tone={ready ? 'success' : 'neutral'}>{ready ? readyLabel : 'Desligado'}</StatusPill>
+      </div>
+      {!ready && (
+        <Button variant="outlined" fullWidth onClick={onAllow}>
+          {allowLabel}
+        </Button>
+      )}
+    </div>
+  )
 }
 
+/** Shown after entering a workspace: pick an avatar and allow camera / microphone separately. */
 export default function LoginDialog() {
-  const [name, setName] = useState<string>('')
-  const [avatarIndex, setAvatarIndex] = useState<number>(0)
-  const [nameFieldEmpty, setNameFieldEmpty] = useState<boolean>(false)
   const dispatch = useAppDispatch()
-  const videoConnected = useAppSelector((state) => state.user.videoConnected)
-  const roomJoined = useAppSelector((state) => state.room.roomJoined)
+  const user = useAppSelector((state) => state.auth.user)
+  const hasCam = useAppSelector((state) => state.user.hasCam)
+  const hasMic = useAppSelector((state) => state.user.hasMic)
   const roomName = useAppSelector((state) => state.room.roomName)
-  const roomDescription = useAppSelector((state) => state.room.roomDescription)
+  const [avatar, setAvatar] = useState(() => {
+    const saved = localStorage.getItem(AVATAR_KEY)
+    return avatars.some((a) => a.name === saved) ? saved! : avatars[0].name
+  })
   const game = phaserGame.scene.keys.game as Game
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (name === '') {
-      setNameFieldEmpty(true)
-    } else if (roomJoined) {
-      console.log('Join! Name:', name, 'Avatar:', avatars[avatarIndex].name)
-      game.registerKeys()
-      game.myPlayer.setPlayerName(name)
-      game.myPlayer.setPlayerTexture(avatars[avatarIndex].name)
-      game.network.readyToConnect()
-      dispatch(setLoggedIn(true))
-    }
+    if (!user) return
+    localStorage.setItem(AVATAR_KEY, avatar)
+    game.registerKeys()
+    game.myPlayer.setPlayerName(user.name)
+    game.myPlayer.setPlayerTexture(avatar)
+    game.network.readyToConnect()
+    // Calls work even without devices (others are heard/seen); devices can be allowed later.
+    game.network.videoConnected()
+    dispatch(setLoggedIn(true))
   }
 
   return (
-    <Wrapper onSubmit={handleSubmit}>
-      <Title>Joining</Title>
-      <RoomName>
-        <Avatar style={{ background: getColorByString(roomName) }}>
-          {getAvatarString(roomName)}
-        </Avatar>
-        <h3>{roomName}</h3>
-      </RoomName>
-      <RoomDescription>
-        <ArrowRightIcon /> {roomDescription}
-      </RoomDescription>
-      <Content>
-        <Left>
-          <SubTitle>Select an avatar</SubTitle>
-          <Swiper
-            modules={[Navigation]}
-            navigation
-            spaceBetween={0}
-            slidesPerView={1}
-            onSlideChange={(swiper) => {
-              setAvatarIndex(swiper.activeIndex)
-            }}
-          >
-            {avatars.map((avatar) => (
-              <SwiperSlide key={avatar.name}>
-                <img src={avatar.img} alt={avatar.name} />
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        </Left>
-        <Right>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Name"
-            variant="outlined"
-            color="secondary"
-            error={nameFieldEmpty}
-            helperText={nameFieldEmpty && 'Name is required'}
-            onInput={(e) => {
-              setName((e.target as HTMLInputElement).value)
-            }}
-          />
-          {!videoConnected && (
-            <Warning>
-              <Alert variant="outlined" severity="warning">
-                <AlertTitle>Warning</AlertTitle>
-                No webcam/mic connected - <strong>connect one for best experience!</strong>
-              </Alert>
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={() => {
-                  game.network.webRTC?.getUserMedia()
-                }}
-              >
-                Connect Webcam
-              </Button>
-            </Warning>
-          )}
+    <Overlay>
+      <Card as="form" onSubmit={handleSubmit}>
+        <div className="eyebrow">Entrando em</div>
+        <h2>{roomName || 'Workspace'}</h2>
+        <Muted>
+          Você aparecerá como <strong style={{ color: 'var(--text)' }}>{user?.name}</strong>.
+        </Muted>
 
-          {videoConnected && (
-            <Warning>
-              <Alert variant="outlined">Webcam connected!</Alert>
-            </Warning>
-          )}
-        </Right>
-      </Content>
-      <Bottom>
-        <Button variant="contained" color="secondary" size="large" type="submit">
-          Join
-        </Button>
-      </Bottom>
-    </Wrapper>
+        <div className="label">Escolha seu personagem</div>
+        <AvatarGrid role="radiogroup">
+          {avatars.map((a) => (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={avatar === a.name}
+              aria-label={a.label}
+              key={a.name}
+              className={avatar === a.name ? 'selected' : ''}
+              onClick={() => setAvatar(a.name)}
+            >
+              <img src={a.img} alt="" />
+            </button>
+          ))}
+        </AvatarGrid>
+
+        <div className="label">Câmera e microfone</div>
+        <div className="devices">
+          <DeviceCard
+            icon={<VideocamOutlinedIcon fontSize="small" />}
+            name="Câmera"
+            ready={hasCam}
+            readyLabel="Pronta"
+            allowLabel="Permitir câmera"
+            onAllow={() => game.network.webRTC?.enableDevice('video')}
+          />
+          <DeviceCard
+            icon={<MicNoneOutlinedIcon fontSize="small" />}
+            name="Microfone"
+            ready={hasMic}
+            readyLabel="Pronto"
+            allowLabel="Permitir microfone"
+            onAllow={() => game.network.webRTC?.enableDevice('audio')}
+          />
+        </div>
+        <div className="hint">
+          Opcional: você pode entrar sem eles e ativar depois pela barra superior.
+        </div>
+
+        <div className="actions">
+          <Button type="submit" variant="contained" size="large" endIcon={<ArrowForwardIcon />}>
+            Entrar no escritório
+          </Button>
+        </div>
+      </Card>
+    </Overlay>
   )
 }

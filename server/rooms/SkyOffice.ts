@@ -1,12 +1,12 @@
-import bcrypt from 'bcrypt'
 import { Room, Client, ServerError } from 'colyseus'
 import { Dispatcher } from '@colyseus/command'
 import { Player, OfficeState, Computer, Whiteboard } from './schema/OfficeState'
 import { Message } from '../../types/Messages'
-import { IRoomData } from '../../types/Rooms'
+import { IJoinOptions } from '../../types/Rooms'
+import { AuthUser, canAccessWorkspace, verifyToken } from '../auth/jwt'
+import { query } from '../db/pool'
 import { whiteboardRoomIds } from './schema/OfficeState'
 import PlayerUpdateCommand from './commands/PlayerUpdateCommand'
-import PlayerUpdateNameCommand from './commands/PlayerUpdateNameCommand'
 import {
   ComputerAddUserCommand,
   ComputerRemoveUserCommand,
@@ -19,23 +19,24 @@ import ChatMessageUpdateCommand from './commands/ChatMessageUpdateCommand'
 
 export class SkyOffice extends Room<OfficeState> {
   private dispatcher = new Dispatcher(this)
-  private name: string
-  private description: string
-  private password: string | null = null
+  private workspaceId: string
+  private name = ''
+  private description = ''
+  private pendingNames = new Map<string, string>()
 
-  async onCreate(options: IRoomData) {
-    const { name, description, password, autoDispose } = options
-    this.name = name
-    this.description = description
-    this.autoDispose = autoDispose
-
-    let hasPassword = false
-    if (password) {
-      const salt = await bcrypt.genSalt(10)
-      this.password = await bcrypt.hash(password, salt)
-      hasPassword = true
-    }
-    this.setMetadata({ name, description, hasPassword })
+  async onCreate(options: IJoinOptions) {
+    // One room per workspace (see filterBy in server/index.ts); it closes when empty.
+    this.workspaceId = options?.workspaceId
+    const rows = /^[0-9a-f-]{36}$/i.test(this.workspaceId || '')
+      ? await query<{ name: string; description: string }>(
+          'SELECT name, description FROM workspaces WHERE id = $1',
+          [this.workspaceId]
+        )
+      : []
+    if (!rows[0]) throw new ServerError(404, 'Workspace não encontrado')
+    this.name = rows[0].name
+    this.description = rows[0].description
+    this.setMetadata({ workspaceId: this.workspaceId, name: this.name })
 
     this.setState(new OfficeState())
 
@@ -109,18 +110,16 @@ export class SkyOffice extends Room<OfficeState> {
       }
     )
 
-    // when receiving updatePlayerName message, call the PlayerUpdateNameCommand
-    this.onMessage(Message.UPDATE_PLAYER_NAME, (client, message: { name: string }) => {
-      this.dispatcher.dispatch(new PlayerUpdateNameCommand(), {
-        client,
-        name: message.name,
-      })
-    })
-
-    // when a player is ready to connect, call the PlayerReadyToConnectCommand
+    // when a player finished picking an avatar: reveal their account name and mark ready
     this.onMessage(Message.READY_TO_CONNECT, (client) => {
       const player = this.state.players.get(client.sessionId)
-      if (player) player.readyToConnect = true
+      if (!player) return
+      const name = this.pendingNames.get(client.sessionId)
+      if (name) {
+        player.name = name
+        this.pendingNames.delete(client.sessionId)
+      }
+      player.readyToConnect = true
     })
 
     // when a player is ready to connect, call the PlayerReadyToConnectCommand
@@ -155,26 +154,32 @@ export class SkyOffice extends Room<OfficeState> {
     })
   }
 
-  async onAuth(client: Client, options: { password: string | null }) {
-    if (this.password) {
-      const validPassword = await bcrypt.compare(options.password, this.password)
-      if (!validPassword) {
-        throw new ServerError(403, 'Password is incorrect!')
-      }
+  async onAuth(client: Client, options: IJoinOptions) {
+    const user = await verifyToken(options?.token)
+    if (!user) throw new ServerError(401, 'Sessão inválida ou expirada')
+    if (!(await canAccessWorkspace(user, this.workspaceId))) {
+      throw new ServerError(403, 'Você não tem acesso a este workspace')
     }
-    return true
+    return user
   }
 
-  onJoin(client: Client, options: any) {
-    this.state.players.set(client.sessionId, new Player())
+  onJoin(client: Client, options: IJoinOptions, user: AuthUser) {
+    // The display name comes from the account, never from the browser.
+    // It is set right away but only becomes visible to others once the player
+    // finishes picking an avatar (see READY_TO_CONNECT below).
+    const player = new Player()
+    this.pendingNames.set(client.sessionId, user.name)
+    this.state.players.set(client.sessionId, player)
     client.send(Message.SEND_ROOM_DATA, {
       id: this.roomId,
+      workspaceId: this.workspaceId,
       name: this.name,
       description: this.description,
     })
   }
 
   onLeave(client: Client, consented: boolean) {
+    this.pendingNames.delete(client.sessionId)
     if (this.state.players.has(client.sessionId)) {
       this.state.players.delete(client.sessionId)
     }

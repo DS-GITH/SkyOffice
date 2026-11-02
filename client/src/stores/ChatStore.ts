@@ -14,7 +14,8 @@ export const chatSlice = createSlice({
   initialState: {
     chatMessages: new Array<{ messageType: MessageType; chatMessage: IChatMessage }>(),
     focused: false,
-    showChat: true,
+    showChat: window.innerWidth > 900,
+    unreadCount: 0,
   },
   reducers: {
     pushChatMessage: (state, action: PayloadAction<IChatMessage>) => {
@@ -22,6 +23,7 @@ export const chatSlice = createSlice({
         messageType: MessageType.REGULAR_MESSAGE,
         chatMessage: action.payload,
       })
+      if (!state.showChat) state.unreadCount++
     },
     pushPlayerJoinedMessage: (state, action: PayloadAction<string>) => {
       state.chatMessages.push({
@@ -29,7 +31,7 @@ export const chatSlice = createSlice({
         chatMessage: {
           createdAt: new Date().getTime(),
           author: action.payload,
-          content: 'joined the lobby',
+          content: 'entrou no escritório',
         } as IChatMessage,
       })
     },
@@ -39,7 +41,7 @@ export const chatSlice = createSlice({
         chatMessage: {
           createdAt: new Date().getTime(),
           author: action.payload,
-          content: 'left the lobby',
+          content: 'saiu do escritório',
         } as IChatMessage,
       })
     },
@@ -50,6 +52,7 @@ export const chatSlice = createSlice({
     },
     setShowChat: (state, action: PayloadAction<boolean>) => {
       state.showChat = action.payload
+      if (action.payload) state.unreadCount = 0
     },
   },
 })

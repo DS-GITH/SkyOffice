@@ -19,17 +19,17 @@ export default class Computer extends Item {
     const numberOfUsers = this.currentUsers.size
     this.clearStatusBox()
     if (numberOfUsers === 1) {
-      this.setStatusBox(`${numberOfUsers} user`)
+      this.setStatusBox(`${numberOfUsers} pessoa`)
     } else if (numberOfUsers > 1) {
-      this.setStatusBox(`${numberOfUsers} users`)
+      this.setStatusBox(`${numberOfUsers} pessoas`)
     }
   }
 
   onOverlapDialog() {
     if (this.currentUsers.size === 0) {
-      this.setDialogBox('Press R to use computer')
+      this.setDialogBox('Pressione R para usar o computador')
     } else {
-      this.setDialogBox('Press R join')
+      this.setDialogBox('Pressione R para entrar')
     }
   }
 

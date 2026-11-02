@@ -1,105 +1,60 @@
 import { Client, Room } from 'colyseus.js'
 import { IComputer, IOfficeState, IPlayer, IWhiteboard } from '../../../types/IOfficeState'
 import { Message } from '../../../types/Messages'
-import { IRoomData, RoomType } from '../../../types/Rooms'
+import { RoomType } from '../../../types/Rooms'
 import { ItemType } from '../../../types/Items'
 import WebRTC from '../web/WebRTC'
 import { phaserEvents, Event } from '../events/EventCenter'
 import store from '../stores'
 import { setSessionId, setPlayerNameMap, removePlayerNameMap } from '../stores/UserStore'
-import {
-  setLobbyJoined,
-  setJoinedRoomData,
-  setAvailableRooms,
-  addAvailableRooms,
-  removeAvailableRooms,
-} from '../stores/RoomStore'
+import { setJoinedRoomData, setOnlineCount } from '../stores/RoomStore'
 import {
   pushChatMessage,
   pushPlayerJoinedMessage,
   pushPlayerLeftMessage,
 } from '../stores/ChatStore'
 import { setWhiteboardUrls } from '../stores/WhiteboardStore'
+import { SERVER_WS_URL, getToken } from './api'
 
 export default class Network {
   private client: Client
   private room?: Room<IOfficeState>
-  private lobby!: Room
   webRTC?: WebRTC
 
   mySessionId!: string
 
   constructor() {
-    const protocol = window.location.protocol.replace('http', 'ws')
-    const endpoint =
-      process.env.NODE_ENV === 'production'
-        ? import.meta.env.VITE_SERVER_URL
-        : `${protocol}//${window.location.hostname}:2567`
-    this.client = new Client(endpoint)
-    this.joinLobbyRoom().then(() => {
-      store.dispatch(setLobbyJoined(true))
-    })
+    this.client = new Client(SERVER_WS_URL)
 
-    phaserEvents.on(Event.MY_PLAYER_NAME_CHANGE, this.updatePlayerName, this)
     phaserEvents.on(Event.MY_PLAYER_TEXTURE_CHANGE, this.updatePlayer, this)
     phaserEvents.on(Event.PLAYER_DISCONNECTED, this.playerStreamDisconnect, this)
   }
 
-  /**
-   * method to join Colyseus' built-in LobbyRoom, which automatically notifies
-   * connected clients whenever rooms with "realtime listing" have updates
-   */
-  async joinLobbyRoom() {
-    this.lobby = await this.client.joinOrCreate(RoomType.LOBBY)
-
-    this.lobby.onMessage('rooms', (rooms) => {
-      store.dispatch(setAvailableRooms(rooms))
+  /** Joins (or creates) the room of a workspace. The server checks the token and membership. */
+  async joinWorkspace(workspaceId: string) {
+    this.room = await this.client.joinOrCreate(RoomType.WORKSPACE, {
+      workspaceId,
+      token: getToken(),
     })
-
-    this.lobby.onMessage('+', ([roomId, room]) => {
-      store.dispatch(addAvailableRooms({ roomId, room }))
-    })
-
-    this.lobby.onMessage('-', (roomId) => {
-      store.dispatch(removeAvailableRooms(roomId))
-    })
-  }
-
-  // method to join the public lobby
-  async joinOrCreatePublic() {
-    this.room = await this.client.joinOrCreate(RoomType.PUBLIC)
     this.initialize()
   }
 
-  // method to join a custom room
-  async joinCustomById(roomId: string, password: string | null) {
-    this.room = await this.client.joinById(roomId, { password })
-    this.initialize()
-  }
-
-  // method to create a custom room
-  async createCustom(roomData: IRoomData) {
-    const { name, description, password, autoDispose } = roomData
-    this.room = await this.client.create(RoomType.CUSTOM, {
-      name,
-      description,
-      password,
-      autoDispose,
-    })
-    this.initialize()
+  leave() {
+    this.room?.leave()
   }
 
   // set up all network listeners before the game starts
   initialize() {
     if (!this.room) return
+    const room = this.room
 
-    this.lobby.leave()
-    this.mySessionId = this.room.sessionId
-    store.dispatch(setSessionId(this.room.sessionId))
+    this.mySessionId = room.sessionId
+    store.dispatch(setSessionId(room.sessionId))
     this.webRTC = new WebRTC(this.mySessionId, this)
 
     // new instance added to the players MapSchema
-    this.room.state.players.onAdd = (player: IPlayer, key: string) => {
+    room.state.players.onAdd = (player: IPlayer, key: string) => {
+      store.dispatch(setOnlineCount(room.state.players.size))
       if (key === this.mySessionId) return
 
       // track changes on every child object inside the players MapSchema
@@ -108,7 +63,7 @@ export default class Network {
           const { field, value } = change
           phaserEvents.emit(Event.PLAYER_UPDATED, field, value, key)
 
-          // when a new player finished setting up player name
+          // when a new player finished choosing an avatar (the server reveals the name)
           if (field === 'name' && value !== '') {
             phaserEvents.emit(Event.PLAYER_JOINED, player, key)
             store.dispatch(setPlayerNameMap({ id: key, name: value }))
@@ -119,16 +74,17 @@ export default class Network {
     }
 
     // an instance removed from the players MapSchema
-    this.room.state.players.onRemove = (player: IPlayer, key: string) => {
+    room.state.players.onRemove = (player: IPlayer, key: string) => {
+      store.dispatch(setOnlineCount(room.state.players.size))
       phaserEvents.emit(Event.PLAYER_LEFT, key)
       this.webRTC?.deleteVideoStream(key)
       this.webRTC?.deleteOnCalledVideoStream(key)
-      store.dispatch(pushPlayerLeftMessage(player.name))
+      if (player.name) store.dispatch(pushPlayerLeftMessage(player.name))
       store.dispatch(removePlayerNameMap(key))
     }
 
     // new instance added to the computers MapSchema
-    this.room.state.computers.onAdd = (computer: IComputer, key: string) => {
+    room.state.computers.onAdd = (computer: IComputer, key: string) => {
       // track changes on every child object's connectedUser
       computer.connectedUser.onAdd = (item, index) => {
         phaserEvents.emit(Event.ITEM_USER_ADDED, item, key, ItemType.COMPUTER)
@@ -139,7 +95,7 @@ export default class Network {
     }
 
     // new instance added to the whiteboards MapSchema
-    this.room.state.whiteboards.onAdd = (whiteboard: IWhiteboard, key: string) => {
+    room.state.whiteboards.onAdd = (whiteboard: IWhiteboard, key: string) => {
       store.dispatch(
         setWhiteboardUrls({
           whiteboardId: key,
@@ -156,27 +112,27 @@ export default class Network {
     }
 
     // new instance added to the chatMessages ArraySchema
-    this.room.state.chatMessages.onAdd = (item, index) => {
+    room.state.chatMessages.onAdd = (item, index) => {
       store.dispatch(pushChatMessage(item))
     }
 
     // when the server sends room data
-    this.room.onMessage(Message.SEND_ROOM_DATA, (content) => {
+    room.onMessage(Message.SEND_ROOM_DATA, (content) => {
       store.dispatch(setJoinedRoomData(content))
     })
 
     // when a user sends a message
-    this.room.onMessage(Message.ADD_CHAT_MESSAGE, ({ clientId, content }) => {
+    room.onMessage(Message.ADD_CHAT_MESSAGE, ({ clientId, content }) => {
       phaserEvents.emit(Event.UPDATE_DIALOG_BUBBLE, clientId, content)
     })
 
     // when a peer disconnects with myPeer
-    this.room.onMessage(Message.DISCONNECT_STREAM, (clientId: string) => {
+    room.onMessage(Message.DISCONNECT_STREAM, (clientId: string) => {
       this.webRTC?.deleteOnCalledVideoStream(clientId)
     })
 
     // when a computer user stops sharing screen
-    this.room.onMessage(Message.STOP_SCREEN_SHARE, (clientId: string) => {
+    room.onMessage(Message.STOP_SCREEN_SHARE, (clientId: string) => {
       const computerState = store.getState().computer
       computerState.shareScreenManager?.onUserLeft(clientId)
     })
@@ -234,11 +190,6 @@ export default class Network {
   // method to send player updates to Colyseus server
   updatePlayer(currentX: number, currentY: number, currentAnim: string) {
     this.room?.send(Message.UPDATE_PLAYER, { x: currentX, y: currentY, anim: currentAnim })
-  }
-
-  // method to send player name to Colyseus server
-  updatePlayerName(currentName: string) {
-    this.room?.send(Message.UPDATE_PLAYER_NAME, { name: currentName })
   }
 
   // method to send ready-to-connect signal to Colyseus server

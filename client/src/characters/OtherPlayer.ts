@@ -4,6 +4,15 @@ import MyPlayer from './MyPlayer'
 import { sittingShiftData } from './Player'
 import WebRTC from '../web/WebRTC'
 import { Event, phaserEvents } from '../events/EventCenter'
+import { playProximitySound } from '../utils/sounds'
+
+/**
+ * Size of the proximity area around other players, as a multiple of the sprite size.
+ * Overlapping this area is what starts the audio/video call (was [6, 4]; doubled).
+ */
+export const PROXIMITY_SCALE = [12, 8]
+/** How long (ms) someone must stay out of range before we consider them gone. */
+const RANGE_EXIT_DELAY = 750
 
 export default class OtherPlayer extends Player {
   private targetPosition: [number, number]
@@ -12,6 +21,8 @@ export default class OtherPlayer extends Player {
   private connected = false
   private playContainerBody: Phaser.Physics.Arcade.Body
   private myPlayer?: MyPlayer
+  private inRange = false
+  private lastOverlapAt = 0
 
   constructor(
     scene: Phaser.Scene,
@@ -31,6 +42,14 @@ export default class OtherPlayer extends Player {
 
   makeCall(myPlayer: MyPlayer, webRTC: WebRTC) {
     this.myPlayer = myPlayer
+
+    // Sound cue when this player enters talking range (both sides hear it)
+    this.lastOverlapAt = this.scene.time.now
+    if (!this.inRange && myPlayer.readyToConnect) {
+      this.inRange = true
+      playProximitySound()
+    }
+
     const myPlayerId = myPlayer.playerId
     if (
       !this.connected &&
@@ -108,6 +127,7 @@ export default class OtherPlayer extends Player {
     }
 
     this.lastUpdateTimestamp = t
+    if (this.inRange && t - this.lastOverlapAt > RANGE_EXIT_DELAY) this.inRange = false
     this.setDepth(this.y) // change player.depth based on player.y
     const animParts = this.anims.currentAnim.key.split('_')
     const animState = animParts[1]
@@ -202,7 +222,7 @@ Phaser.GameObjects.GameObjectFactory.register(
 
     this.scene.physics.world.enableBody(sprite, Phaser.Physics.Arcade.DYNAMIC_BODY)
 
-    const collisionScale = [6, 4]
+    const collisionScale = PROXIMITY_SCALE
     sprite.body
       .setSize(sprite.width * collisionScale[0], sprite.height * collisionScale[1])
       .setOffset(

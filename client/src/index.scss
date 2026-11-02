@@ -1,11 +1,85 @@
+/* Xpert Dev identity ("Spatial Glass", dark) — same tokens as XpertHub */
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/GeneralSans-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/GeneralSans-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/GeneralSans-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/GeneralSans-700.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --brand: #2b7fff;
+  --brand-hover: #4b93ff;
+  --brand-soft: rgb(43 127 255 / 0.18);
+  --brand-soft-fg: #8cc2ff;
+  --brand-glow: #5aa9ff;
+  --brand-deep: #0a3fae;
+
+  --scene: #030407;
+  --scene-glow-1: rgb(0 101 245 / 0.38);
+  --scene-glow-2: rgb(10 63 174 / 0.4);
+  --scene-glow-3: rgb(90 169 255 / 0.12);
+
+  --surface: rgb(255 255 255 / 0.065);
+  --surface-solid: #16181d;
+  --surface-overlay: rgb(14 16 21 / 0.72);
+  --surface-2: rgb(255 255 255 / 0.06);
+  --surface-3: rgb(255 255 255 / 0.12);
+  --glass-blur: 40px;
+  --glass-edge: rgb(255 255 255 / 0.14);
+
+  --border: rgb(255 255 255 / 0.1);
+  --border-strong: rgb(255 255 255 / 0.22);
+  --nav-active: rgb(255 255 255 / 0.14);
+
+  --text: #fff;
+  --text-muted: rgb(255 255 255 / 0.62);
+  --text-faint: rgb(255 255 255 / 0.4);
+
+  --success: #55cd0a;
+  --success-soft: rgb(85 205 10 / 0.16);
+  --danger: #e94045;
+  --danger-soft: rgb(233 64 69 / 0.16);
+  --warning: #f5b544;
+
+  --shadow-card: 0 1px 0 0 var(--glass-edge) inset, 0 20px 25px 0 rgb(0 0 0 / 0.18);
+  --shadow-float: 0 1px 0 0 var(--glass-edge) inset, 0 24px 48px -12px rgb(0 0 0 / 0.55);
+
+  --radius-control: 12px;
+  --radius-card: 20px;
+  --radius-panel: 28px;
+
+  --font: 'General Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --topbar-h: 64px;
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--scene);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 *,
@@ -20,59 +94,52 @@ body {
   }
 }
 
+/* Webcam tiles (video elements are added by web/WebRTC.ts) */
 .video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 160px);
-  grid-gap: 5px;
-  grid-auto-rows: 160px;
+  grid-template-columns: repeat(auto-fill, 168px);
+  grid-auto-rows: 126px;
+  gap: 10px;
   position: absolute;
-  top: 35px;
-  right: 10px;
-  max-height: calc(100% - 100px);
+  top: calc(var(--topbar-h) + 24px);
+  right: 16px;
+  max-height: calc(100% - var(--topbar-h) - 120px);
   overflow-y: auto;
+  z-index: 5;
+  padding: 2px;
 }
 
 .video-grid video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 5px;
-  border: 1px groove rgb(229, 251, 255);
+  border-radius: 16px;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card), 0 0 0 2px rgb(43 127 255 / 0.35);
 }
 
-.button-grid {
-  width: 160px;
-  display: flex;
-  justify-content: space-evenly;
-  position: absolute;
-  top: 5px;
-  right: 10px;
+.video-grid video.self {
+  transform: scaleX(-1);
+  box-shadow: var(--shadow-card);
 }
 
 * {
-  &:hover {
-    &::-webkit-scrollbar-thumb {
-      background: #eee;
-    }
-  }
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
 
   &::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
 
-  &::-webkit-scrollbar-track {
-    background: rgba(#333, 0.2);
-    border-radius: 3px;
-  }
-
+  &::-webkit-scrollbar-track,
   &::-webkit-scrollbar-corner {
-    background: rgba(#333, 0.2);
+    background: transparent;
   }
 
   &::-webkit-scrollbar-thumb {
-    transition: background 0.1s;
-    background: rgba(#eee, 0.8);
+    background: rgb(255 255 255 / 0.18);
     border-radius: 3px;
   }
 }

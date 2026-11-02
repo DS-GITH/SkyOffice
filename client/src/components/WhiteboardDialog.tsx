@@ -1,74 +1,44 @@
 import React from 'react'
 import styled from 'styled-components'
-import IconButton from '@mui/material/IconButton'
-import CloseIcon from '@mui/icons-material/Close'
+import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined'
 
 import { useAppSelector, useAppDispatch } from '../hooks'
 import { closeWhiteboardDialog } from '../stores/WhiteboardStore'
+import DialogFrame from './DialogFrame'
 
-const Backdrop = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  padding: 16px 180px 16px 16px;
-  width: 100%;
-  height: 100%;
-`
-const Wrapper = styled.div`
-  width: 100%;
-  height: 100%;
-  background: #222639;
-  border-radius: 16px;
-  padding: 16px;
-  color: #eee;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-width: max-content;
-
-  .close {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-  }
-`
-
-const WhiteboardWrapper = styled.div`
+const Board = styled.div`
   flex: 1;
-  border-radius: 25px;
+  min-height: 0;
+  margin: 16px;
+  border-radius: var(--radius-card);
   overflow: hidden;
-  margin-right: 25px;
+  border: 1px solid var(--border);
 
   iframe {
     width: 100%;
     height: 100%;
+    border: 0;
     background: #fff;
   }
 `
 
 export default function WhiteboardDialog() {
   const whiteboardUrl = useAppSelector((state) => state.whiteboard.whiteboardUrl)
+  const whiteboardId = useAppSelector((state) => state.whiteboard.whiteboardId)
   const dispatch = useAppDispatch()
 
   return (
-    <Backdrop>
-      <Wrapper>
-        <IconButton
-          aria-label="close dialog"
-          className="close"
-          onClick={() => dispatch(closeWhiteboardDialog())}
-        >
-          <CloseIcon />
-        </IconButton>
-        {whiteboardUrl && (
-          <WhiteboardWrapper>
-            <iframe title="white board" src={whiteboardUrl} />
-          </WhiteboardWrapper>
-        )}
-      </Wrapper>
-    </Backdrop>
+    <DialogFrame
+      icon={<BrushOutlinedIcon fontSize="small" />}
+      title={`Quadro ${Number(whiteboardId ?? 0) + 1}`}
+      subtitle="Quadro colaborativo — todos neste quadro veem as mudanças ao vivo"
+      onClose={() => dispatch(closeWhiteboardDialog())}
+    >
+      {whiteboardUrl && (
+        <Board>
+          <iframe title="Quadro" src={whiteboardUrl} />
+        </Board>
+      )}
+    </DialogFrame>
   )
 }

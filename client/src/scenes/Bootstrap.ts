@@ -6,6 +6,8 @@ import { setRoomJoined } from '../stores/RoomStore'
 
 export default class Bootstrap extends Phaser.Scene {
   private preloadComplete = false
+  private resolvePreload!: () => void
+  private preloaded = new Promise<void>((resolve) => (this.resolvePreload = resolve))
   network!: Network
 
   constructor() {
@@ -13,6 +15,9 @@ export default class Bootstrap extends Phaser.Scene {
   }
 
   preload() {
+    // absolute paths, so assets also load on routes like /convite/<token>
+    this.load.setPath('/')
+
     this.load.atlas(
       'cloud_day',
       'assets/background/cloud_day.png',
@@ -79,6 +84,7 @@ export default class Bootstrap extends Phaser.Scene {
 
     this.load.on('complete', () => {
       this.preloadComplete = true
+      this.resolvePreload()
       this.launchBackground(store.getState().user.backgroundMode)
     })
   }
@@ -89,6 +95,13 @@ export default class Bootstrap extends Phaser.Scene {
 
   private launchBackground(backgroundMode: BackgroundMode) {
     this.scene.launch('background', { backgroundMode })
+  }
+
+  /** Joins a workspace room and starts the game scene once assets are loaded. */
+  async enterWorkspace(workspaceId: string) {
+    await this.network.joinWorkspace(workspaceId)
+    await this.preloaded
+    this.launchGame()
   }
 
   launchGame() {

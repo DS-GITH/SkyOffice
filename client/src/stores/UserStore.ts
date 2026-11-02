@@ -19,6 +19,12 @@ export const userSlice = createSlice({
     loggedIn: false,
     playerNameMap: new Map<string, string>(),
     showJoystick: window.innerWidth < 650,
+    /** Permission granted and a real device is in use */
+    hasMic: false,
+    hasCam: false,
+    /** Device currently on (not muted) */
+    micOn: false,
+    camOn: false,
   },
   reducers: {
     toggleBackgroundMode: (state) => {
@@ -47,6 +53,12 @@ export const userSlice = createSlice({
     setShowJoystick: (state, action: PayloadAction<boolean>) => {
       state.showJoystick = action.payload
     },
+    setMediaState: (
+      state,
+      action: PayloadAction<{ micOn?: boolean; camOn?: boolean; hasMic?: boolean; hasCam?: boolean }>
+    ) => {
+      Object.assign(state, action.payload)
+    },
   },
 })
 
@@ -58,6 +70,7 @@ export const {
   setPlayerNameMap,
   removePlayerNameMap,
   setShowJoystick,
+  setMediaState,
 } = userSlice.actions
 
 export default userSlice.reducer

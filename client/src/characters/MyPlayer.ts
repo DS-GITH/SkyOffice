@@ -14,7 +14,6 @@ import { pushPlayerJoinedMessage } from '../stores/ChatStore'
 import { ItemType } from '../../../types/Items'
 import { NavKeys } from '../../../types/KeyboardState'
 import { JoystickMovement } from '../components/Joystick'
-import { openURL } from '../utils/helpers'
 
 export default class MyPlayer extends Player {
   private playContainerBody: Phaser.Physics.Arcade.Body
@@ -34,7 +33,6 @@ export default class MyPlayer extends Player {
 
   setPlayerName(name: string) {
     this.playerName.setText(name)
-    phaserEvents.emit(Event.MY_PLAYER_NAME_CHANGE, name)
     store.dispatch(pushPlayerJoinedMessage(name))
   }
 
@@ -68,11 +66,6 @@ export default class MyPlayer extends Player {
         case ItemType.WHITEBOARD:
           const whiteboard = item as Whiteboard
           whiteboard.openDialog(network)
-          break
-        case ItemType.VENDINGMACHINE:
-          // hacky and hard-coded, but leaving it as is for now
-          const url = 'https://www.buymeacoffee.com/skyoffice'
-          openURL(url)
           break
       }
     }
@@ -120,7 +113,7 @@ export default class MyPlayer extends Player {
           })
           // set up new dialog as player sits down
           chairItem.clearDialogBox()
-          chairItem.setDialogBox('Press E to leave')
+          chairItem.setDialogBox('Pressione E para levantar')
           this.chairOnSit = chairItem
           this.playerBehavior = PlayerBehavior.SITTING
           return

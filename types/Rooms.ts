@@ -1,12 +1,17 @@
 export enum RoomType {
-  LOBBY = 'lobby',
-  PUBLIC = 'skyoffice',
-  CUSTOM = 'custom',
+  WORKSPACE = 'workspace',
 }
 
+/** Options sent by the client when joining a workspace room. */
+export interface IJoinOptions {
+  workspaceId: string
+  token: string
+}
+
+/** Room info sent by the server right after joining. */
 export interface IRoomData {
+  id: string
+  workspaceId: string
   name: string
   description: string
-  password: string | null
-  autoDispose: boolean
 }
