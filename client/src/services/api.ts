@@ -19,6 +19,8 @@ export interface User {
   email: string
   name: string
   role: Role
+  /** character from the avatar generator (null = not created yet) */
+  avatar: string | null
 }
 
 export interface Workspace {
@@ -68,6 +70,7 @@ export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; user: User }>('POST', '/auth/login', { email, password }),
   me: () => request<{ user: User }>('GET', '/auth/me'),
+  saveAvatar: (avatar: string) => request<{ user: User }>('PUT', '/auth/avatar', { avatar }),
 
   workspaces: () => request<{ workspaces: Workspace[] }>('GET', '/workspaces'),
   createWorkspace: (name: string, description: string) =>

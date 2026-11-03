@@ -43,7 +43,7 @@ router.post(
     }
 
     const rows = await query<AuthUser & { password_hash: string }>(
-      'SELECT id, email, name, role, password_hash FROM users WHERE email = $1',
+      'SELECT id, email, name, role, avatar, password_hash FROM users WHERE email = $1',
       [email]
     )
     const user = rows[0]
@@ -62,5 +62,22 @@ router.post(
 router.get('/me', requireAuth, (req: any, res) => {
   res.json({ user: req.user })
 })
+
+// Character chosen in the avatar generator (format: v1-<12 base36 fields>)
+const AVATAR_PATTERN = /^v1(-[0-9a-z]{1,2}){12}$/
+
+router.put(
+  '/avatar',
+  requireAuth,
+  wrap(async (req, res) => {
+    const avatar = String(req.body?.avatar || '')
+    if (!AVATAR_PATTERN.test(avatar)) return res.status(400).json({ error: 'Personagem inválido' })
+    const rows = await query(
+      'UPDATE users SET avatar = $1 WHERE id = $2 RETURNING id, email, name, role, avatar',
+      [avatar, req.user!.id]
+    )
+    res.json({ user: rows[0] })
+  })
+)
 
 export default router

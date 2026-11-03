@@ -1,11 +1,16 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import styled from 'styled-components'
 import { Scene, Logo, GlassPanel } from '../ui/Glass'
+import { renderPreview } from '../../avatar/render'
+import { AvatarConfig } from '../../avatar/options'
 
-import Adam from '../../images/login/Adam_login.png'
-import Ash from '../../images/login/Ash_login.png'
-import Lucy from '../../images/login/Lucy_login.png'
-import Nancy from '../../images/login/Nancy_login.png'
+// A few characters made with our own generator (see client/src/avatar)
+const SHOWCASE: AvatarConfig[] = [
+  { skin: 1, hair: 4, hairColor: 1, facial: 0, glasses: 0, top: 8, topColor: 7, accentColor: 5, bottom: 0, bottomColor: 7, shoes: 1, shoesColor: 4 },
+  { skin: 5, hair: 7, hairColor: 0, facial: 0, glasses: 1, top: 0, topColor: 5, accentColor: 0, bottom: 0, bottomColor: 8, shoes: 0, shoesColor: 0 },
+  { skin: 2, hair: 6, hairColor: 4, facial: 0, glasses: 0, top: 5, topColor: 15, accentColor: 0, bottom: 2, bottomColor: 4, shoes: 2, shoesColor: 18 },
+  { skin: 3, hair: 3, hairColor: 2, facial: 4, glasses: 3, top: 6, topColor: 3, accentColor: 12, bottom: 1, bottomColor: 17, shoes: 3, shoesColor: 9 },
+]
 
 const Grid = styled.div`
   min-height: 100%;
@@ -143,6 +148,10 @@ interface Props {
 }
 
 export default function AuthLayout({ title, subtitle, children }: Props) {
+  const showcase = useMemo(
+    () => SHOWCASE.map((c) => renderPreview(c, { view: 'front' }, 6).toDataURL()),
+    []
+  )
   return (
     <Scene>
       <Grid>
@@ -158,10 +167,9 @@ export default function AuthLayout({ title, subtitle, children }: Props) {
         <ShowcasePanel>
           <div className="blob" />
           <div className="avatars">
-            <img src={Adam} alt="" />
-            <img src={Ash} alt="" />
-            <img src={Lucy} alt="" />
-            <img src={Nancy} alt="" />
+            {showcase.map((src, i) => (
+              <img key={i} src={src} alt="" />
+            ))}
           </div>
           <h2>O escritório da Xpert Dev, onde você estiver.</h2>
           <p>

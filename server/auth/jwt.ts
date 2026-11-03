@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string
   name: string
   role: Role
+  avatar: string | null
 }
 
 const SECRET = process.env.JWT_SECRET
@@ -26,7 +27,7 @@ export async function verifyToken(token: string | undefined | null): Promise<Aut
     const payload = jwt.verify(token, SECRET!) as { sub?: string }
     if (!payload.sub) return null
     const rows = await query<AuthUser>(
-      'SELECT id, email, name, role FROM users WHERE id = $1',
+      'SELECT id, email, name, role, avatar FROM users WHERE id = $1',
       [payload.sub]
     )
     return rows[0] ?? null

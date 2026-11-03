@@ -19,6 +19,8 @@ import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import LogoutIcon from '@mui/icons-material/Logout'
+import FaceRetouchingNaturalOutlinedIcon from '@mui/icons-material/FaceRetouchingNaturalOutlined'
+import AvatarDialog from './avatar/AvatarDialog'
 
 import { GlassPanel, InitialsAvatar, Logo, StatusPill, Muted } from './ui/Glass'
 import { useAppDispatch, useAppSelector } from '../hooks'
@@ -169,6 +171,7 @@ export default function TopBar() {
   const backgroundMode = useAppSelector((state) => state.user.backgroundMode)
   const [menu, setMenu] = useState<HTMLElement | null>(null)
   const [controlsOpen, setControlsOpen] = useState(false)
+  const [avatarOpen, setAvatarOpen] = useState(false)
 
   const webRTC = () => (phaserGame.scene.keys.game as Game)?.network?.webRTC
 
@@ -219,6 +222,17 @@ export default function TopBar() {
         <Divider />
         <MenuItem
           onClick={() => {
+            setAvatarOpen(true)
+            setMenu(null)
+          }}
+        >
+          <ListItemIcon>
+            <FaceRetouchingNaturalOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          Editar personagem
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
             setControlsOpen(true)
             setMenu(null)
           }}
@@ -254,6 +268,7 @@ export default function TopBar() {
       </Menu>
 
       <ControlsDialog open={controlsOpen} onClose={() => setControlsOpen(false)} />
+      <AvatarDialog open={avatarOpen} onClose={() => setAvatarOpen(false)} />
     </>
   )
 }

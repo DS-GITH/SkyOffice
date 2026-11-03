@@ -5,6 +5,7 @@ import { sittingShiftData } from './Player'
 import WebRTC from '../web/WebRTC'
 import { Event, phaserEvents } from '../events/EventCenter'
 import { playProximitySound } from '../utils/sounds'
+import { ensureAnimation } from '../avatar/phaser'
 
 /**
  * Size of the proximity area around other players, as a multiple of the sprite size.
@@ -86,7 +87,8 @@ export default class OtherPlayer extends Player {
         break
 
       case 'anim':
-        if (typeof value === 'string') {
+        // generated avatars are built on demand from the code inside the anim key
+        if (typeof value === 'string' && ensureAnimation(this.scene, value)) {
           this.anims.play(value, true)
         }
         break

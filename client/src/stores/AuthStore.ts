@@ -20,6 +20,9 @@ export const authSlice = createSlice({
       state.status = 'signedIn'
       state.user = action.payload
     },
+    userUpdated: (state, action: PayloadAction<User>) => {
+      state.user = action.payload
+    },
     signedOut: (state) => {
       state.status = 'signedOut'
       state.user = null
@@ -27,6 +30,6 @@ export const authSlice = createSlice({
   },
 })
 
-export const { signedIn, signedOut } = authSlice.actions
+export const { signedIn, signedOut, userUpdated } = authSlice.actions
 
 export default authSlice.reducer

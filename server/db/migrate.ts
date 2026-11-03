@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS invites (
   accepted_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- avatar code from the character generator (see client/src/avatar)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar text;
 `
 
 export async function migrate() {

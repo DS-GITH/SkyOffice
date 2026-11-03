@@ -1,22 +1,22 @@
 import React, { useState } from 'react'
+import CircularProgress from '@mui/material/CircularProgress'
 import styled from 'styled-components'
 import Button from '@mui/material/Button'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import MicNoneOutlinedIcon from '@mui/icons-material/MicNoneOutlined'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
-import Adam from '../images/login/Adam_login.png'
-import Ash from '../images/login/Ash_login.png'
-import Lucy from '../images/login/Lucy_login.png'
-import Nancy from '../images/login/Nancy_login.png'
 import { useAppSelector, useAppDispatch } from '../hooks'
 import { setLoggedIn } from '../stores/UserStore'
-import { GlassPanel, Muted, StatusPill } from './ui/Glass'
+import { userUpdated } from '../stores/AuthStore'
+import { GlassPanel, Muted, StatusPill, ErrorText } from './ui/Glass'
+import AvatarEditor from './avatar/AvatarEditor'
+import { AvatarConfig, decodeAvatar, DEFAULT_AVATAR, encodeAvatar, randomAvatar } from '../avatar/options'
+import { ensureAvatarTexture } from '../avatar/phaser'
+import { api } from '../services/api'
 
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
-
-const AVATAR_KEY = 'xpert-office-avatar'
 
 const Overlay = styled.div`
   position: fixed;
@@ -31,8 +31,10 @@ const Overlay = styled.div`
 
 const Card = styled(GlassPanel)`
   width: 100%;
-  max-width: 560px;
-  padding: 32px;
+  max-width: 880px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 28px 32px;
 
   .eyebrow {
     font-size: 13px;
@@ -48,7 +50,7 @@ const Card = styled(GlassPanel)`
   }
 
   .label {
-    margin: 28px 0 12px;
+    margin: 22px 0 12px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text-muted);
@@ -106,51 +108,6 @@ const Card = styled(GlassPanel)`
   }
 `
 
-const AvatarGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-
-  button {
-    all: unset;
-    cursor: pointer;
-    aspect-ratio: 3 / 4;
-    border-radius: var(--radius-card);
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    display: grid;
-    place-items: center;
-    transition: border-color 0.15s, background 0.15s, transform 0.15s;
-
-    img {
-      width: 60%;
-      image-rendering: pixelated;
-    }
-
-    &:hover {
-      border-color: var(--border-strong);
-      transform: translateY(-2px);
-    }
-
-    &.selected {
-      background: var(--brand-soft);
-      border-color: var(--brand);
-      box-shadow: 0 0 0 4px rgb(43 127 255 / 0.2);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--brand);
-    }
-  }
-`
-
-const avatars = [
-  { name: 'adam', label: 'Adam', img: Adam },
-  { name: 'ash', label: 'Ash', img: Ash },
-  { name: 'lucy', label: 'Lucy', img: Lucy },
-  { name: 'nancy', label: 'Nancy', img: Nancy },
-]
-
 function DeviceCard({
   icon,
   name,
@@ -184,26 +141,41 @@ function DeviceCard({
   )
 }
 
-/** Shown after entering a workspace: pick an avatar and allow camera / microphone separately. */
+/** Shown after entering a workspace: create/adjust the character and allow camera / microphone. */
 export default function LoginDialog() {
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
   const hasCam = useAppSelector((state) => state.user.hasCam)
   const hasMic = useAppSelector((state) => state.user.hasMic)
   const roomName = useAppSelector((state) => state.room.roomName)
-  const [avatar, setAvatar] = useState(() => {
-    const saved = localStorage.getItem(AVATAR_KEY)
-    return avatars.some((a) => a.name === saved) ? saved! : avatars[0].name
-  })
+  // Saved character, or a random one the first time
+  const [avatar, setAvatar] = useState<AvatarConfig>(
+    () => decodeAvatar(user?.avatar) || (user?.avatar === null ? randomAvatar() : DEFAULT_AVATAR)
+  )
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
   const game = phaserGame.scene.keys.game as Game
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!user) return
-    localStorage.setItem(AVATAR_KEY, avatar)
+    if (!user || saving) return
+    const code = encodeAvatar(avatar)
+    if (code !== user.avatar) {
+      setSaving(true)
+      setError('')
+      try {
+        const { user: updated } = await api.saveAvatar(code)
+        dispatch(userUpdated(updated))
+      } catch (err: any) {
+        setSaving(false)
+        setError(err.message || 'Não foi possível salvar o personagem')
+        return
+      }
+    }
+    const texture = ensureAvatarTexture(game, code)
     game.registerKeys()
     game.myPlayer.setPlayerName(user.name)
-    game.myPlayer.setPlayerTexture(avatar)
+    if (texture) game.myPlayer.setPlayerTexture(texture)
     game.network.readyToConnect()
     // Calls work even without devices (others are heard/seen); devices can be allowed later.
     game.network.videoConnected()
@@ -219,22 +191,8 @@ export default function LoginDialog() {
           Você aparecerá como <strong style={{ color: 'var(--text)' }}>{user?.name}</strong>.
         </Muted>
 
-        <div className="label">Escolha seu personagem</div>
-        <AvatarGrid role="radiogroup">
-          {avatars.map((a) => (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={avatar === a.name}
-              aria-label={a.label}
-              key={a.name}
-              className={avatar === a.name ? 'selected' : ''}
-              onClick={() => setAvatar(a.name)}
-            >
-              <img src={a.img} alt="" />
-            </button>
-          ))}
-        </AvatarGrid>
+        <div className="label">Seu personagem</div>
+        <AvatarEditor value={avatar} onChange={setAvatar} />
 
         <div className="label">Câmera e microfone</div>
         <div className="devices">
@@ -259,9 +217,21 @@ export default function LoginDialog() {
           Opcional: você pode entrar sem eles e ativar depois pela barra superior.
         </div>
 
+        {error && (
+          <div style={{ marginTop: 16 }}>
+            <ErrorText>{error}</ErrorText>
+          </div>
+        )}
+
         <div className="actions">
-          <Button type="submit" variant="contained" size="large" endIcon={<ArrowForwardIcon />}>
-            Entrar no escritório
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={saving}
+            endIcon={saving ? undefined : <ArrowForwardIcon />}
+          >
+            {saving ? <CircularProgress size={20} color="inherit" /> : 'Entrar no escritório'}
           </Button>
         </div>
       </Card>

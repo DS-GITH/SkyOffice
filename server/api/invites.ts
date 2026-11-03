@@ -59,7 +59,7 @@ router.post(
       await client.query('BEGIN')
       const { rows } = await client.query(
         `INSERT INTO users (email, name, password_hash, role) VALUES ($1, $2, $3, 'member')
-         RETURNING id, email, name, role`,
+         RETURNING id, email, name, role, avatar`,
         [invite.email, name, passwordHash]
       )
       const user = rows[0]
